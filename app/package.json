@@ -1,0 +1,105 @@
+{
+  "name": "ai-console-app",
+  "version": "0.9.0",
+  "private": true,
+  "description": "Vibe Bridge — AI agents → your keyboard, over its own protocols (macOS first, cross-platform)",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "npm run build && electron .",
+    "start:no-build": "electron .",
+    "smoke": "npm run build && electron . --smoke-test",
+    "test:e2e": "npm run build && electron . --smoke-test",
+    "rebuild": "electron-builder install-app-deps",
+    "pack:mac": "node esbuild.config.mjs && node scripts/prepare-pack.mjs && electron-builder --mac dir && node scripts/ad-hoc-sign.mjs",
+    "pack:mac:dmg": "node esbuild.config.mjs && node scripts/prepare-pack.mjs && electron-builder --mac dir && node scripts/ad-hoc-sign.mjs && node scripts/make-dmg.mjs && node scripts/verify-dmg.mjs",
+    "test:dom": "tsx --test --test-force-exit test/devices-dom.test.ts",
+    "test": "tsx --test --test-force-exit test/*.test.ts"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
+    "esbuild": "^0.24.2",
+    "typescript": "^5.7.2",
+    "@vibebridge/core": "0.9.0",
+    "@vibebridge/protocol": "0.9.0",
+    "@vibebridge/simulator": "0.9.0"
+  },
+  "dependencies": {
+    "node-hid": "^3.1.2"
+  },
+  "build": {
+    "appId": "com.vibebridge.ai-console",
+    "productName": "AI Keyboard Console",
+    "files": [
+      "dist/**/*",
+      "package.json",
+      "node_modules/node-hid/**/*"
+    ],
+    "asarUnpack": [
+      "node_modules/node-hid/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "icon": "build/icon.icns",
+      "target": [
+        {
+          "target": "dir",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "AI-Keyboard-Console-${version}-mac-${arch}.${ext}"
+    },
+    "directories": {
+      "output": "release"
+    },
+    "electronVersion": "33.4.11",
+    "npmRebuild": false,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "dir",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "AI-Keyboard-Console-${version}-win-${arch}.${ext}"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "tar.gz",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "AI-Keyboard-Console-${version}-linux-${arch}.${ext}",
+      "category": "Utility"
+    }
+  },
+  "author": "AI Console contributors"
+}

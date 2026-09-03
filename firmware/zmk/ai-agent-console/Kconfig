@@ -1,0 +1,65 @@
+# AI Console (AKP v1) — ZMK module configuration
+
+menuconfig AI_CONSOLE
+    bool "AI Console (Agent Keyboard Protocol)"
+    default y
+    help
+      Bidirectional Raw HID console link + agent status feedback
+      (underglow colors + OLED widget) + F13-F24 action behaviors.
+
+if AI_CONSOLE
+
+config AI_CONSOLE_RAW_HID_USB
+    bool "Raw HID over USB"
+    default y
+    imply USB_DEVICE_HID
+    help
+      Registers a Raw HID interface (usage page 0xFF60 / usage 0x61,
+      32-byte reports) on USB. Matches the QMK Raw HID usage.
+
+config AI_CONSOLE_RAW_HID_HOG
+    bool "Raw HID over BLE (HID over GATT)"
+    default y
+    depends on ZMK_BLE
+    help
+      Adds a HOG report characteristic for BLE hosts.
+
+config AI_CONSOLE_RAW_HID_USAGE_PAGE
+    hex "Raw HID usage page"
+    default 0xFF60
+
+config AI_CONSOLE_RAW_HID_USAGE
+    hex "Raw HID usage"
+    default 0x61
+
+config AI_CONSOLE_RAW_HID_REPORT_SIZE
+    int "Raw HID report size"
+    default 32
+    range 16 64
+
+config AI_CONSOLE_RAW_HID_DEVICE
+    string "Raw HID HID device instance"
+    default HID_1
+
+config AI_CONSOLE_HOST_TIMEOUT_MS
+    int "Host watchdog timeout (ms)"
+    default 6000
+
+config AI_CONSOLE_UNDERGLOW
+    bool "Agent state underglow"
+    default y
+    depends on ZMK_RGB_UNDERGLOW
+    help
+      Colors the RGB underglow with the agent state. Disable on boards
+      without RGB (the host also stops sending RGB payloads after
+      capability negotiation).
+
+config AI_CONSOLE_OLED
+    bool "Agent state OLED widget"
+    default y
+    depends on ZMK_DISPLAY
+    help
+      LVGL widget showing the 4-line agent status. Requires a display
+      shield (e.g. nice_view) and ZMK_DISPLAY.
+
+endif

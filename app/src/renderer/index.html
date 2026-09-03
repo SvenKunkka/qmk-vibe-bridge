@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:" />
+  <title>Vibe Bridge</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <div class="brand">
+        <div class="logo">⌨</div>
+        <div>
+          <div class="title" id="app-title">Vibe Bridge</div>
+          <div class="subtitle" id="app-subtitle">Connect AI activity to capabilities already exposed by supported keyboard firmware.</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button id="btn-lang" class="ghost">中文</button>
+      </div>
+    </header>
+
+    <div id="body">
+      <nav id="sidebar">
+        <button class="nav-btn active" data-view="home">🏠 Home</button>
+        <button class="nav-btn" data-view="devices">⌨ Devices</button>
+        <button class="nav-btn" data-view="lights">💡 Status Lights</button>
+        <button class="nav-btn" data-view="mapping">🔁 Mapping</button>
+        <button class="nav-btn" data-view="providers">🔌 Providers</button>
+        <button class="nav-btn" data-view="profiles">📦 Profiles</button>
+        <button class="nav-btn" data-view="activity">📜 Activity &amp; Audit</button>
+        <button class="nav-btn" data-view="settings">⚙ Settings</button>
+        <button class="nav-btn" data-view="compat">✅ Compatibility</button>
+      </nav>
+
+      <main id="content">
+        <!-- HOME -->
+        <section id="view-home" class="view active">
+          <div class="card">
+            <h2 id="home-title">Vibe Bridge</h2>
+            <p id="home-tagline">Connect AI activity to capabilities already exposed by supported keyboard firmware.</p>
+            <p class="hint" id="home-hint"></p>
+          </div>
+          <div class="card">
+            <h3 id="home-status-title">Status</h3>
+            <div id="home-status" class="row"></div>
+          </div>
+        </section>
+
+        <!-- DEVICES -->
+        <section id="view-devices" class="view">
+          <div class="view-head">
+            <h2 id="devices-title">Devices</h2>
+            <div class="view-head-actions">
+              <button id="btn-refresh" class="ghost">⟳ Refresh</button>
+            </div>
+          </div>
+          <p class="hint" id="readonly-hint"></p>
+          <div id="device-list"></div>
+        </section>
+
+        <!-- STATUS LIGHTS -->
+        <section id="view-lights" class="view">
+          <div class="view-head">
+            <h2 id="lights-title">Status Lights</h2>
+          </div>
+          <p class="hint" id="lights-hint"></p>
+          <div class="card">
+            <div class="row"><label id="lbl-lights-source">AI software</label><select id="lights-source"></select></div>
+            <p class="hint" id="lights-source-hint"></p>
+          </div>
+          <div class="card">
+            <h3 id="lights-states-title">Agent state → keyboard light color</h3>
+            <div id="lights-states"></div>
+            <p class="hint" id="lights-save-hint"></p>
+          </div>
+        </section>
+
+        <!-- MAPPING -->
+        <section id="view-mapping" class="view">
+          <h2 id="mapping-title">Mapping</h2>
+          <p class="hint" id="mapping-hint"></p>
+          <div id="pending-list" class="card"></div>
+          <h3 id="confirm-title">Awaiting confirmation (ask policy)</h3>
+          <div id="confirm-list" class="card"></div>
+        </section>
+
+        <!-- PROVIDERS -->
+        <section id="view-providers" class="view">
+          <h2 id="providers-title">Agent Providers</h2>
+          <div class="card">
+            <div class="row"><label id="lbl-api-status">Local API</label><span id="api-status">—</span></div>
+            <div class="row"><label id="lbl-api-addr">Address</label><code id="api-addr" class="path">—</code></div>
+            <div class="row"><label id="lbl-api-token">Token</label><code id="api-token" class="path">—</code></div>
+            <div class="row">
+              <button id="btn-api-start" class="primary">Start local API</button>
+              <button id="btn-api-test" class="ghost">Test event</button>
+              <button id="btn-api-revoke" class="ghost">Revoke token</button>
+            </div>
+            <div class="row"><label id="lbl-conflict">Conflict policy</label><select id="set-conflict">
+              <option value="priority">priority</option>
+              <option value="latest-active">latest-active</option>
+              <option value="pinned-session">pinned-session</option>
+            </select></div>
+            <div class="row"><label id="lbl-pinned">Pinned session</label><input id="set-pinned" placeholder="sessionId" /></div>
+          </div>
+          <div class="card">
+            <h3 id="providers-example-title">Local integration example</h3>
+            <pre id="providers-example" class="code-block"></pre>
+            <button id="btn-copy-example" class="ghost">Copy</button>
+          </div>
+          <div class="card">
+            <h3 id="providers-last-title">Last event</h3>
+            <div id="providers-last" class="hint">—</div>
+          </div>
+        </section>
+
+        <!-- PROFILES -->
+        <section id="view-profiles" class="view">
+          <h2 id="profiles-title">Protocol Profiles</h2>
+          <div class="card">
+            <h3 id="profiles-import-title">Import VIA definition (JSON)</h3>
+            <textarea id="def-import" rows="6" placeholder='{"name":"My Board","vendorId":"0x5241","productId":"0x1234",…}'></textarea>
+            <div class="row">
+              <button id="btn-def-import" class="primary">Import</button>
+              <span id="def-import-result" class="hint"></span>
+            </div>
+            <div id="def-preview" class="hint"></div>
+          </div>
+          <div class="card">
+            <h3 id="profiles-list-title">Profiles &amp; bindings</h3>
+            <div id="profiles-list"></div>
+            <button id="btn-export-diagnostics" class="ghost">Export diagnostics</button>
+            <pre id="diagnostics-out" class="code-block hidden"></pre>
+          </div>
+        </section>
+
+        <!-- ACTIVITY & AUDIT -->
+        <section id="view-activity" class="view">
+          <div class="view-head">
+            <h2 id="audit-title">Write audit</h2>
+            <span id="audit-count" class="hint"></span>
+          </div>
+          <table id="audit-table" class="audit-table">
+            <thead>
+              <tr>
+                <th data-k="time" id="audit-th-time">Time</th>
+                <th data-k="device" id="audit-th-device">Device</th>
+                <th data-k="capability" id="audit-th-capability">Capability</th>
+                <th data-k="op" id="audit-th-op">Operation</th>
+                <th data-k="result" id="audit-th-result">Result</th>
+              </tr>
+            </thead>
+            <tbody id="audit-body"></tbody>
+          </table>
+          <h3 id="activity-events-title">Recent events</h3>
+          <div id="activity-events" class="card hint">—</div>
+        </section>
+
+        <!-- SETTINGS -->
+        <section id="view-settings" class="view">
+          <h2 id="settings-title">Settings</h2>
+          <div class="card">
+            <div class="row"><label id="lbl-language">Language</label><select id="set-language">
+              <option value="en">English</option><option value="zh">中文</option>
+            </select></div>
+            <p class="hint" id="lang-hint"></p>
+            <div class="row"><label id="lbl-writepolicy">Write policy</label><select id="set-writepolicy">
+              <option value="read-only">Read-only (default)</option>
+              <option value="ask">Ask before writing</option>
+              <option value="allow">Allow writes (gated)</option>
+            </select></div>
+            <p class="hint" id="writepolicy-hint"></p>
+            <div class="row"><label id="lbl-master">Disable all writes</label><input id="set-masterwrite" type="checkbox" checked /></div>
+            <div class="row"><label id="lbl-source">Agent source</label><select id="set-source"></select></div>
+            <div class="row"><label id="lbl-config">Config file</label><code id="set-config-path"></code></div>
+          </div>
+        </section>
+
+        <!-- COMPATIBILITY -->
+        <section id="view-compat" class="view">
+          <h2 id="compat-title">Compatibility</h2>
+          <div id="compat-list" class="card"></div>
+        </section>
+      </main>
+    </div>
+
+    <footer id="statusbar">
+      <span id="status-dot"></span>
+      <span id="status-text">ready</span>
+      <span class="spacer"></span>
+      <span id="log-line"></span>
+    </footer>
+  </div>
+  <script src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+compatible: "zmk,behavior-ai-console"
+description: >
+  Sends an AI Console (AKP) command over Raw HID when pressed. The binding
+  parameter selects the action (see include/dt-bindings/behavior/ai_console.h,
+  e.g. AI_APPROVE). Optional `emit-f-key` makes the behavior also emit the
+  matching F13-F24 keycode so the host gets a fallback signal.
+properties:
+  label:
+    type: string
+    required: true
+    description: Human readable label
+  emit-f-key:
+    type: boolean
+    default: false
+    description: >
+      Also emit the corresponding F13-F24 key when pressed (compat mode)
+  usage:
+    type: int
+    default: 0
+    description: Reserved

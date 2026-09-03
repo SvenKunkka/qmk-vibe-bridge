@@ -1,0 +1,307 @@
+name: desktop-release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version override for workflow_dispatch (defaults to app/package.json version, e.g. 0.9.0)'
+        required: false
+        type: string
+      publish_draft:
+        description: 'Create a DRAFT GitHub Release after build (default false — artifacts only)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read # default; only the release job raises to write
+
+jobs:
+  build:
+    name: build (${{ matrix.os }}-${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            arch: arm64
+            builder: mac
+            dir: mac-arm64
+          - os: macos-14
+            arch: x64
+            builder: mac
+            dir: mac-x64
+          - os: windows-latest
+            arch: x64
+            builder: win
+            dir: win-unpacked
+          - os: ubuntu-22.04
+            arch: x64
+            builder: linux
+            dir: linux-unpacked
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22 # current Node LTS
+          cache: npm
+
+      # P0-2: single source of truth for versioning. TAG keeps the leading 'v'
+      # (used for the GitHub Release), VERSION strips it (used in EVERY
+      # artifact filename, matching electron-builder's package.json version).
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            RAW="${{ inputs.version || '0.9.0' }}"
+          else
+            RAW="${{ github.ref_name }}"
+          fi
+          RAW="${RAW:-0.9.0}"
+          echo "tag=${RAW}"
+          echo "version=${RAW#v}" >> "$GITHUB_OUTPUT"
+          echo "tag=${RAW}" >> "$GITHUB_OUTPUT"
+
+      - name: Version consistency check
+        shell: bash
+        run: |
+          set -euo pipefail
+          V="${{ steps.ver.outputs.version }}"
+          PKG=$(node -p "require('./app/package.json').version")
+          test "$V" = "$PKG" || { echo "VERSION=$V != package.json=$PKG"; exit 1; }
+          echo "version $V matches package.json (no leading v)"
+
+      - name: Linux system deps (node-hid hidapi, dpkg for deb verification)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libudev-dev libusb-1.0-0-dev dpkg
+
+      - name: Allow npm install scripts (node-hid prebuilds, electron)
+        run: npm config set allow-scripts true
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests (all workspaces)
+        run: npm test
+
+      - name: Firmware static checks
+        run: node scripts/firmware-static-check.mjs
+
+      - name: Packaged smoke (headless)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.builder }}" = "mac" ]; then
+            "app/release/${{ matrix.dir }}/AI Keyboard Console.app/Contents/MacOS/AI Keyboard Console" --smoke-test
+          elif [ "${{ matrix.builder }}" = "win" ]; then
+            # headless: Windows runner has a desktop session; run the unpacked exe
+            ./app/release/win-unpacked/AI Keyboard Console.exe --smoke-test
+          else
+            # Linux runner: GUI needs xvfb; electron needs --no-sandbox in CI
+            sudo apt-get install -y xvfb
+            # honest headless policy: xvfb provides a display; the smoke must pass
+            xvfb-run -a ./app/release/linux-unpacked/ai-console-app --smoke-test --no-sandbox
+          fi
+
+      - name: Package macOS app (arm64/x64)
+        if: matrix.builder == 'mac'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd app
+          V="${{ steps.ver.outputs.version }}"
+          node scripts/prepare-pack.mjs
+          npx electron-builder --mac dir --${{ matrix.arch }}
+          node scripts/ad-hoc-sign.mjs "${{ matrix.dir }}"
+          node scripts/make-dmg.mjs "${{ matrix.dir }}" "$V"
+          node scripts/verify-dmg.mjs "${{ matrix.dir }}" "$V"
+          # canonical portable zip of the signed .app
+          ditto -c -k --keepParent "release/${{ matrix.dir }}/AI Keyboard Console.app" \
+            "release/AI-Keyboard-Console-$V-mac-${{ matrix.arch }}.zip"
+          if ! security find-identity -p codesigning 2>/dev/null | grep -q "Developer ID Application"; then
+            echo "UNSIGNED_LOCAL_ONLY=true" >> "$GITHUB_ENV"
+          fi
+          ls -la release/
+
+      - name: Package Windows app (NSIS exe + portable zip of full win-unpacked)
+        if: matrix.builder == 'win'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd app
+          V="${{ steps.ver.outputs.version }}"
+          node scripts/prepare-pack.mjs
+          npx electron-builder --win nsis dir --x64
+          # P0-1: portable zip must contain the WHOLE win-unpacked runtime
+          # (main exe + resources/app.asar + DLLs + locales), not a single exe.
+          cd release
+          if command -v powershell >/dev/null 2>&1; then
+            powershell -NoProfile -Command "Compress-Archive -Path '${{ matrix.dir }}/*' -DestinationPath \"AI-Keyboard-Console-$V-win-${{ matrix.arch }}-portable.zip\" -Force"
+          else
+            zip -rq "AI-Keyboard-Console-$V-win-${{ matrix.arch }}-portable.zip" "${{ matrix.dir }}"
+          fi
+          ls -la
+
+      - name: Package Linux app (AppImage + deb + tar.gz)
+        if: matrix.builder == 'linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd app
+          node scripts/prepare-pack.mjs
+          npx electron-builder --linux AppImage deb tar.gz --x64
+          ls -la release/
+
+      - name: Per-job SHA256SUMS
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd app/release
+          shasum -a 256 AI-Keyboard-Console-* > "SHA256SUMS-${{ matrix.os }}-${{ matrix.arch }}.txt"
+          cat "SHA256SUMS-${{ matrix.os }}-${{ matrix.arch }}.txt"
+
+      - name: Generate platform manifest (round-17)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd app/release
+          V="${{ steps.ver.outputs.version }}"
+          SIGN="unsigned-not-notarized"
+          if [ "${{ matrix.builder }}" = "mac" ] && security find-identity -p codesigning 2>/dev/null | grep -q "Developer ID Application"; then
+            SIGN="signed"
+          fi
+          node -e '
+            const fs = require("fs");
+            const files = fs.readdirSync(".").filter(f => f.startsWith("AI-Keyboard-Console-") && !f.endsWith(".txt"));
+            const sha = Object.fromEntries(fs.readFileSync(`SHA256SUMS-${{ matrix.os }}-${{ matrix.arch }}.txt`, "utf8").trim().split("
+").map(l => { const [h, f] = l.split(/\s+/); return [f, h]; }));
+            const manifest = {
+              version: process.env.V,
+              commit: process.env.GITHUB_SHA,
+              os: "${{ matrix.os }}",
+              arch: "${{ matrix.arch }}",
+              builder: "${{ matrix.builder }}",
+              signing: process.env.SIGN,
+              testStatus: { typecheck: true, unit: true, packagedSmoke: true },
+              files: files.map(f => ({ name: f, size: fs.statSync(f).size, sha256: sha[f] || null })),
+            };
+            fs.writeFileSync(`desktop-manifest-${{ matrix.os }}-${{ matrix.arch }}.json`, JSON.stringify(manifest, null, 2));
+          '
+          cat "desktop-manifest-${{ matrix.os }}-${{ matrix.arch }}.json"
+
+      - name: Verify release artifacts (full per-platform matrix)
+        shell: bash
+        run: |
+          set -euo pipefail
+          node ../scripts/verify-release-artifacts.mjs release
+
+      - name: Upload artifacts (temporary; PR/dispatch verification only)
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.os }}-${{ matrix.arch }}
+          path: |
+            app/release/AI-Keyboard-Console-*
+            app/release/SHA256SUMS-*
+            app/release/desktop-manifest-*
+
+  release:
+    name: publish GitHub Release (DRAFT only, tag v*)
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # only this job can create/update releases and upload assets
+    steps:
+      - uses: actions/checkout@v4 # needed for version consistency check
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: |
+          set -euo pipefail
+          RAW="${{ github.ref_name }}"
+          RAW="${RAW:-0.9.0}"
+          echo "version=${RAW#v}" >> "$GITHUB_OUTPUT"
+          echo "tag=${RAW}" >> "$GITHUB_OUTPUT"
+
+      - name: Version consistency check
+        shell: bash
+        run: |
+          set -euo pipefail
+          V="${{ steps.ver.outputs.version }}"
+          PKG=$(node -p "require('./app/package.json').version")
+          test "$V" = "$PKG" || { echo "VERSION=$V != package.json=$PKG"; exit 1; }
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Aggregate SHA256SUMS
+        run: |
+          cd dist
+          cat SHA256SUMS-*.txt | sort -k2 > SHA256SUMS.txt
+          rm -f SHA256SUMS-*.txt
+          ls -la
+
+      - name: Verify aggregated artifacts (9 files, exact version, no leading v)
+        run: |
+          set -euo pipefail
+          V="${{ steps.ver.outputs.version }}"
+          echo "$V" | grep -Eq '^[0-9]' || { echo "VERSION must not start with v: $V"; exit 1; }
+          for f in \
+            "AI-Keyboard-Console-$V-mac-arm64.dmg" \
+            "AI-Keyboard-Console-$V-mac-arm64.zip" \
+            "AI-Keyboard-Console-$V-mac-x64.dmg" \
+            "AI-Keyboard-Console-$V-mac-x64.zip" \
+            "AI-Keyboard-Console-$V-win-x64.exe" \
+            "AI-Keyboard-Console-$V-win-x64-portable.zip" \
+            "AI-Keyboard-Console-$V-linux-x64.AppImage" \
+            "AI-Keyboard-Console-$V-linux-x64.deb" \
+            "AI-Keyboard-Console-$V-linux-x64.tar.gz"; do
+            if [ ! -s "dist/$f" ]; then
+              echo "MISSING OR EMPTY: $f"
+              exit 1
+            fi
+          done
+          echo "all 9 expected artifacts present and non-empty for version $V"
+
+      - name: Publish or update GitHub Release (never delete existing)
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.ver.outputs.tag }}"
+          V="${{ steps.ver.outputs.version }}"
+          TITLE="AI Keyboard Console $TAG"
+          NOTES="Desktop release $TAG (version $V) — see README for install and signing status."
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "release $TAG exists — updating assets in place (no delete/recreate)"
+            gh release upload "$TAG" dist/* --clobber
+            gh release edit "$TAG" --title "$TITLE" --notes "$NOTES"
+          else
+            echo "release $TAG does not exist — creating DRAFT (public publish requires explicit user action)"
+            gh release create "$TAG" --title "$TITLE" --notes "$NOTES" --draft dist/*
+          fi
+          gh release view "$TAG" --json assets --jq '.assets[] | .name' > assets.txt
+          test -s assets.txt
+          echo "published assets:"
+          cat assets.txt

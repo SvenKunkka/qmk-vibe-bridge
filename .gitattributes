@@ -1,0 +1,15 @@
+# round-17: cross-platform line endings (the repo is checked out on mac/win/linux)
+* text=auto eol=lf
+
+# binary artifacts stay binary
+*.png binary
+*.jpg binary
+*.icns binary
+*.dmg binary
+*.zip binary
+*.blockmap binary
+
+# shell scripts keep LF even on Windows
+*.sh text eol=lf
+*.mjs text eol=lf
+*.ts text eol=lf

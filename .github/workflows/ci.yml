@@ -1,0 +1,59 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22   # current Node LTS (Jod); NOT a local Node 26 accident
+          cache: npm
+
+      # native deps for node-hid (hidapi)
+      - name: Install Linux HID dev libs
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libudev-dev libusb-1.0-0-dev
+
+      # npm 12 allow-scripts: postinstall (node-hid prebuilds, electron) must run
+      - name: Allow install scripts
+        run: npm config set allow-scripts true
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Typecheck
+        run: npm run typecheck --workspaces --if-present
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Firmware static checks + C codec tests
+        run: node scripts/firmware-static-check.mjs
+
+      - name: Electron smoke (headless)
+        if: runner.os == 'macOS'
+        run: |
+          cd app
+          ../node_modules/.bin/electron . --smoke-test
+
+      - name: Single-instance dual-launch test
+        if: runner.os == 'macOS'
+        run: bash scripts/dual-launch-test.sh dev

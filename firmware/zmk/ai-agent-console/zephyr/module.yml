@@ -1,0 +1,6 @@
+name: ai-agent-console
+build:
+  cmake: .
+  kconfig: Kconfig
+  settings:
+    board_root: .

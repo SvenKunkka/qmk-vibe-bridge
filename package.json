@@ -1,0 +1,42 @@
+{
+  "name": "qmk-vibe-bridge",
+  "version": "0.9.0",
+  "private": true,
+  "description": "Vibe Bridge — bridge AI agents to keyboards over the keyboard's own protocols (QMK Raw HID / VIA / Vial / ZMK Studio / optional extensions). Read-only by default.",
+  "workspaces": [
+    "packages/*",
+    "app"
+  ],
+  "scripts": {
+    "build": "npm run build -w packages/akp-codec && npm run build -w packages/core && npm run build -w packages/simulator && npm run build -w app",
+    "build:akp-codec": "npm run build -w packages/akp-codec",
+    "build:core": "npm run build -w packages/core",
+    "build:simulator": "npm run build -w packages/simulator",
+    "build:app": "npm run build -w app",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:akp-codec": "npm run test -w packages/akp-codec",
+    "test:core": "npm run test -w packages/core",
+    "test:simulator": "npm run test -w packages/simulator",
+    "test:firmware": "node scripts/firmware-static-check.mjs",
+    "test:e2e": "npm run test:e2e -w app",
+    "simulate": "npm run simulate -w packages/simulator",
+    "pack:mac": "npm run pack:mac -w app",
+    "doctor": "node scripts/doctor.mjs",
+    "pack:mac:dmg": "npm run pack:mac:dmg -w app",
+    "acceptance": "bash scripts/acceptance.sh"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.0",
+    "happy-dom": "^20.11.12",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "allowScripts": {
+    "node-hid@3.4.0": true,
+    "electron@33.4.11": true
+  }
+}

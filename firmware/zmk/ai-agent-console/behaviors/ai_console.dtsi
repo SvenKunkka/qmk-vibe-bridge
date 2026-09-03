@@ -1,0 +1,16 @@
+/*
+ * AI Console behaviors — instantiate the key behavior.
+ * Include this file from your keymap overlay, then bind:
+ *   &ai_console_key AI_APPROVE
+ */
+
+/ {
+    behaviors {
+        ai_console_key: behavior_ai_console_key {
+            compatible = "zmk,behavior-ai-console";
+            #binding-cells = <1>;
+            label = "AI_CONSOLE_KEY";
+            emit-f-key = <false>;
+        };
+    };
+};

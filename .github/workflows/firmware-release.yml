@@ -1,0 +1,64 @@
+name: firmware-release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # pinned, reproducible QMK CLI container (NOT latest); bump deliberately.
+  QMK_IMAGE: ghcr.io/qmk/qmk_cli:1.2.0
+  VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '0.9.0' }}
+
+jobs:
+  # QMK: the ONLY firmware artifacts we publish are built here, inside the
+  # pinned official container, in this run. Nothing stale is ever uploaded.
+  qmk:
+    name: QMK firmware (real compile, pinned container)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile with pinned official QMK container
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          # record the toolchain version for provenance
+          docker run --rm "$QMK_IMAGE" qmk --version > release/qmk-toolchain-version.txt
+          docker run --rm \
+            -v "$PWD/firmware/qmk/keyboards/ai_console:/qmk_firmware/keyboards/ai_console" \
+            -v "$PWD/release:/release" \
+            "$QMK_IMAGE" \
+            bash -c "cd /qmk_firmware && qmk compile -kb ai_console -km default && \
+              test -s .build/ai_console_default.bin && \
+              test -s .build/ai_console_default.hex && \
+              cp .build/ai_console_default.bin /release/ai_console_default.bin && \
+              cp .build/ai_console_default.hex /release/ai_console_default.hex && \
+              echo 'compile OK'"
+
+      - name: Verify firmware artifacts (non-empty, canonical names)
+        run: |
+          set -euo pipefail
+          cd release
+          V="$VERSION"
+          test -s ai_console_default.bin || { echo "bin missing"; exit 1; }
+          test -s ai_console_default.hex || { echo "hex missing"; exit 1; }
+          mv ai_console_default.bin "AI-Keyboard-Console-firmware-$V-qmk-ai_console.bin"
+          mv ai_console_default.hex "AI-Keyboard-Console-firmware-$V-qmk-ai_console.hex"
+          cat qmk-toolchain-version.txt
+          shasum -a 256 AI-Keyboard-Console-firmware-* > "SHA256SUMS-firmware-qmk.txt"
+          ls -la
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware-qmk
+          path: release/AI-Keyboard-Console-firmware-*
+          if-no-files-found: error
+
+  # ZMK: genuinely BLOCKED. This repository has no reproducible board/shield +
+  # west.yml that has ever been compiled, so there is NO zmk job at all — we
+  # refuse to upload stale or unbuilt .uf2 pretending to be a new build.
+  # Status documented in docs/HARDWARE_VALIDATION.md (ZMK BLOCKED).

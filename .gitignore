@@ -1,0 +1,48 @@
+# dependencies
+node_modules/
+packages/*/node_modules/
+
+# build output
+dist/
+out/
+build/
+*.tsbuildinfo
+*.log
+
+# packaging / release artifacts (never commit local builds)
+app/dist/
+app/release/
+app/build/icon.iconset/
+*.dmg
+*.app
+*.exe
+*.AppImage
+*.zip
+*.blockmap
+*.sha256
+
+# debug / scratch files
+dbg*.ts
+dbg*.js
+dbg*.mjs
+hidtest*
+framedump*
+crcdbg*
+t3.ts
+*.tmp
+
+# local toolchains (not part of the repo)
+/qmk_firmware/
+/zmk/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# local config
+.npmrc.local
+.env
+.env.*
