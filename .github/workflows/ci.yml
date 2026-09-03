@@ -29,10 +29,6 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libudev-dev libusb-1.0-0-dev
 
-      # npm 12 allow-scripts: postinstall (node-hid prebuilds, electron) must run
-      - name: Allow install scripts
-        run: npm config set allow-scripts true
-
       - name: Install dependencies
         run: npm ci
 
