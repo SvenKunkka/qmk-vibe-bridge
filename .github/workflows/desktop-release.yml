@@ -182,11 +182,10 @@ jobs:
           if [ "${{ matrix.builder }}" = "mac" ] && security find-identity -p codesigning 2>/dev/null | grep -q "Developer ID Application"; then
             SIGN="signed"
           fi
-          node -e '
+          V="$V" SIGN="$SIGN" node -e '
             const fs = require("fs");
             const files = fs.readdirSync(".").filter(f => f.startsWith("AI-Keyboard-Console-") && !f.endsWith(".txt"));
-            const sha = Object.fromEntries(fs.readFileSync(`SHA256SUMS-${{ matrix.os }}-${{ matrix.arch }}.txt`, "utf8").trim().split("
-").map(l => { const [h, f] = l.split(/\s+/); return [f, h]; }));
+            const sha = Object.fromEntries(fs.readFileSync(`SHA256SUMS-${{ matrix.os }}-${{ matrix.arch }}.txt`, "utf8").trim().split("\n").map(l => { const [h, f] = l.split(/\s+/); return [f, h]; }));
             const manifest = {
               version: process.env.V,
               commit: process.env.GITHUB_SHA,
