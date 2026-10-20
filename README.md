@@ -1,3 +1,7 @@
+<!-- SVENKUNKKA-README-NAV:BEGIN -->
+[中文项目说明](#project-overview-zh) · [English overview](#project-overview-en) · [维护者 X / Maintainer on X](https://x.com/Svenu1s5)
+<!-- SVENKUNKKA-README-NAV:END -->
+
 # Vibe Bridge (QMK VIBE BRIDGE)
 
 A cross-platform desktop bridge that connects **AI agents / IDEs / automation
@@ -144,3 +148,30 @@ scripts/               acceptance.sh, unknown-rawhid-readonly-test.ts, dual-laun
   compatibility. Hardware status is tracked in
   [docs/HARDWARE_VALIDATION.md](docs/HARDWARE_VALIDATION.md) with explicit
   Implemented / Partial / Design-only markers.
+
+
+---
+
+<!-- SVENKUNKKA-PROJECT-INFO:BEGIN -->
+
+<a id="project-overview-zh"></a>
+## 中文项目说明
+
+连接 AI 工具状态与 QMK/ZMK 键盘现有通信接口的跨平台桌面桥接工具。按设备实际能力映射灯光、指示和显示动作，提供协议识别、映射配置与写入审计。
+
+**使用入口：** 运行 `npm install`、`npm run build`，再分别启动 `npm run simulate` 与 `npm run start -w app`；真实设备范围见 [兼容性说明](docs/COMPATIBILITY.md)。
+
+**范围说明：** 默认只读，不自动刷固件；没有已验证控制配置的 Raw HID 设备保持只读，模拟器不证明真实硬件兼容。
+
+<a id="project-overview-en"></a>
+## English project overview
+
+A cross-platform desktop bridge between AI tool states and communication interfaces already exposed by QMK/ZMK firmware. It maps events to actual lighting, indicator and display capabilities, with protocol identification, configuration and write auditing.
+
+**Getting started:** Run `npm install` and `npm run build`, then start `npm run simulate` and `npm run start -w app` in separate terminals. See the [compatibility guide](docs/COMPATIBILITY.md) for devices.
+
+**Scope:** Read-only by default and does not flash firmware. Raw HID devices without a verified control profile remain read-only; simulation does not prove hardware compatibility.
+
+**仓库维护者 / Repository maintainer:** [SvenKunkka](https://github.com/SvenKunkka) · [X / Twitter](https://x.com/Svenu1s5)
+
+<!-- SVENKUNKKA-PROJECT-INFO:END -->
